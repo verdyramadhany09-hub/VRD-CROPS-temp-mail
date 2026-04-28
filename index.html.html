@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Temp Mail</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: Arial;
+  display: flex;
+  height: 100vh;
+  background: #f1f3f4;
+}
+
+.sidebar {
+  width: 220px;
+  background: white;
+  padding: 15px;
+}
+
+.sidebar h2 {
+  color: #1a73e8;
+}
+
+.sidebar button {
+  width: 100%;
+  padding: 10px;
+  background: #1a73e8;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  background: white;
+  padding: 10px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.email-box {
+  background: #e8f0fe;
+  padding: 8px;
+}
+
+.container {
+  display: flex;
+  flex: 1;
+}
+
+.inbox {
+  flex: 1;
+  border-right: 1px solid #ddd;
+}
+
+.mail-item {
+  padding: 10px;
+  border-bottom: 1px solid #ddd;
+  cursor: pointer;
+}
+
+.viewer {
+  width: 40%;
+  padding: 10px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="sidebar">
+  <h2>TempMail</h2>
+  <button onclick="generateEmail()">+ New Email</button>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <div id="email">No email</div>
+    <button onclick="loadInbox()">Refresh</button>
+  </div>
+
+  <div class="container">
+    <div class="inbox" id="inbox"></div>
+    <div class="viewer" id="viewer">Select email</div>
+  </div>
+</div>
+
+<script>
+let login, domain;
+let lastIds = [];
+
+function generateEmail() {
+  fetch("https://www.1secmail.com/api/v1/?action=genRandomMailbox&count=1")
+    .then(res => res.json())
+    .then(data => {
+      document.getElementById("email").innerText = data[0];
+      [login, domain] = data[0].split("@");
+      loadInbox();
+      setInterval(loadInbox, 5000);
+    });
+}
+
+function loadInbox() {
+  if (!login) return;
+
+  fetch(`https://www.1secmail.com/api/v1/?action=getMessages&login=${login}&domain=${domain}`)
+    .then(res => res.json())
+    .then(messages => {
+
+      let inbox = document.getElementById("inbox");
+      inbox.innerHTML = "";
+
+      let currentIds = messages.map(m => m.id);
+
+      if (lastIds.length > 0) {
+        let newMail = currentIds.filter(id => !lastIds.includes(id));
+        if (newMail.length > 0) {
+          new Audio("https://www.soundjay.com/buttons/sounds/button-3.mp3").play();
+        }
+      }
+
+      lastIds = currentIds;
+
+      messages.forEach(msg => {
+        let div = document.createElement("div");
+        div.className = "mail-item";
+        div.innerHTML = "<b>" + msg.from + "</b><br>" + msg.subject;
+        div.onclick = () => readMail(msg.id);
+        inbox.appendChild(div);
+      });
+    });
+}
+
+function readMail(id) {
+  fetch(`https://www.1secmail.com/api/v1/?action=readMessage&login=${login}&domain=${domain}&id=${id}`)
+    .then(res => res.json())
+    .then(mail => {
+      document.getElementById("viewer").innerHTML =
+        "<h3>" + mail.subject + "</h3>" +
+        "<p><b>From:</b> " + mail.from + "</p><hr>" +
+        "<p>" + mail.textBody + "</p>";
+    });
+}
+</script>
+
+</body>
+</html>
